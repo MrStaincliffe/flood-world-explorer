@@ -1,633 +1,413 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Flood-Proof Globe</title>
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Google Fonts: Fredoka (Headings) & Nunito (Body) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
-    
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Three.js & OrbitControls Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>World Explorer: Flood-Proof Architecture</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Three.js & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <style>
-        body {
-            font-family: 'Nunito', sans-serif;
-            user-select: none;
-            overflow: hidden;
-            background-color: #030712;
-            touch-action: none;
-        }
-        h1, h2, h3, .font-heading {
-            font-family: 'Fredoka', cursive, sans-serif;
-        }
-        .globe-canvas-container {
-            width: 100vw;
-            height: 100vh;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-        /* Glassmorphism panel styling */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-        }
-        /* Floating label bounce animation */
-        @keyframes float-bounce {
-            0%, 100% { transform: translate(-50%, -100%) translateY(0); }
-            50% { transform: translate(-50%, -100%) translateY(-6px); }
-        }
-        .globe-pin-label {
-            position: absolute;
-            z-index: 10;
-            pointer-events: auto;
-            cursor: pointer;
-            animation: float-bounce 2.5s ease-in-out infinite;
-            transition: opacity 0.25s ease, transform 0.15s ease;
-            will-change: transform, opacity;
-        }
-        /* Ensure hovered labels pop over neighboring overlapping labels */
-        .globe-pin-label:hover {
-            z-index: 50 !important;
-            transform: translate(-50%, -105%) scale(1.08);
-        }
-        /* Custom scrollbar for content card */
-        .custom-scroll::-webkit-scrollbar {
-            width: 8px;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background: #94a3b8;
-            border-radius: 9999px;
-        }
-    </style>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Open Sans', sans-serif;
+      background-color: #0b1d3a;
+      color: #333;
+    }
+
+    #webgl-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* UI Overlay */
+    .header-title {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      z-index: 10;
+      color: #ffffff;
+      font-family: 'Fredoka One', cursive;
+      font-size: 24px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+      pointer-events: none;
+    }
+
+    .instruction-banner {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(11, 29, 58, 0.85);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 16px;
+      font-weight: 600;
+      border: 2px solid #4a90e2;
+      pointer-events: none;
+      text-align: center;
+    }
+
+    /* Modal Card */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      z-index: 20;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 500px;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .card-header {
+      background: #1a365d;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title {
+      font-family: 'Fredoka One', cursive;
+      font-size: 20px;
+    }
+
+    .close-btn {
+      background: #e53e3e;
+      color: white;
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-weight: bold;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .card-image-container {
+      width: 100%;
+      height: 240px;
+      background-color: #e2e8f0;
+      position: relative;
+    }
+
+    .card-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .card-text {
+      font-size: 16px;
+      line-height: 1.5;
+      color: #2d3748;
+    }
+  </style>
 </head>
-<body class="text-slate-800 antialiased h-screen w-screen relative select-none">
+<body>
 
-    <!-- 3D Canvas Viewport -->
-    <div id="canvas-container" class="globe-canvas-container"></div>
+  <div class="header-title">🌍 World Explorer: Flood-Proof Homes</div>
+  <div class="instruction-banner">Touch and drag to rotate the globe. Tap a pin to explore!</div>
+  
+  <div id="webgl-container"></div>
 
-    <!-- 2D Overlay Container for Floating Pin Labels -->
-    <div id="labels-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
-
-    <!-- Header Overlay Banner -->
-    <header class="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 pointer-events-none flex justify-center">
-        <div class="pointer-events-auto bg-slate-900/95 text-white px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-2xl sm:rounded-full shadow-2xl border-2 sm:border-4 border-blue-400/60 backdrop-blur-md flex items-center justify-between gap-3 sm:gap-4 max-w-2xl w-full">
-            <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                <span class="text-3xl sm:text-5xl animate-pulse shrink-0">🌍</span>
-                <div class="min-w-0">
-                    <h1 class="text-base sm:text-2xl font-black leading-tight tracking-wide text-blue-200 whitespace-nowrap">Flood-Proof Globe</h1>
-                    <p class="text-xs sm:text-base text-blue-300 font-extrabold leading-tight">Spin globe • Tap country to explore!</p>
-                </div>
-            </div>
-            <!-- Visited Counter Badge -->
-            <div class="bg-blue-900/80 px-3 py-1.5 rounded-full border border-blue-400/50 text-xs sm:text-sm font-black text-amber-300 whitespace-nowrap shrink-0">
-                <span id="visited-count">0</span> / <span id="total-count">7</span> Explored
-            </div>
+  <!-- Modal Display -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-card">
+      <div class="card-header">
+        <div class="card-title" id="modalTitle">Country Title</div>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+      <div class="card-image-container">
+        <img id="modalImage" class="card-image" src="" alt="Location image">
+      </div>
+      <div class="card-body">
+        <div class="flex items-center gap-2 mb-3">
+          <span id="modalBadge" class="inline-block px-3 py-1 rounded-full text-xs font-bold border"></span>
         </div>
-    </header>
-
-    <!-- ESL Information Modal Card -->
-    <div id="info-modal" class="fixed inset-0 z-30 flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md hidden transition-opacity duration-200">
-        <div class="glass-card w-full max-w-2xl rounded-3xl p-6 sm:p-8 shadow-2xl relative border-8 border-white flex flex-col max-h-[92vh]">
-            
-            <!-- Close Button -->
-            <button onclick="closeInfoModal()" aria-label="Close information dialog" class="absolute top-4 right-4 w-12 h-12 bg-slate-200 hover:bg-rose-500 hover:text-white text-slate-800 rounded-full font-black flex items-center justify-center text-2xl transition-all shadow-lg z-10 active:scale-95">
-                ✕
-            </button>
-
-            <!-- Modal Header: Large Flag and Clean Country Name -->
-            <div class="flex items-center gap-4 mb-3 pr-10">
-                <span id="modal-flag" class="text-5xl sm:text-6xl shrink-0 p-2 bg-slate-100 rounded-2xl shadow-inner border border-slate-200">🇻🇳</span>
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2">
-                        <span id="modal-country" class="text-lg sm:text-2xl font-black text-blue-600 tracking-wider uppercase block truncate">VIETNAM</span>
-                    </div>
-                    <h2 id="modal-title" class="text-3xl sm:text-4xl font-black text-slate-900 leading-tight truncate">Stilt Houses</h2>
-                </div>
-            </div>
-
-            <!-- Structural Type Badge -->
-            <div class="mb-4">
-                <span id="modal-badge" class="px-5 py-2 text-sm sm:text-base font-black rounded-full bg-emerald-100 text-emerald-800 border-2 border-emerald-400 uppercase tracking-wide inline-block shadow-sm">
-                    FRAME STRUCTURE
-                </span>
-            </div>
-
-            <!-- Large House Image Container -->
-            <div class="relative w-full h-64 sm:h-80 rounded-2xl overflow-hidden mb-4 bg-slate-900 border-4 border-slate-200 shadow-xl shrink-0">
-                <img id="modal-image" src="" alt="Flood-proof structure" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80'">
-            </div>
-
-            <!-- ESL Description Box with Simplified Large Text -->
-            <div class="bg-blue-50 rounded-2xl p-5 border-2 border-blue-200 shadow-sm overflow-y-auto custom-scroll">
-                <p id="modal-description" class="text-slate-900 text-lg sm:text-2xl font-black leading-relaxed">
-                    Houses built high off the ground on tall wooden posts. Floodwater flows safely underneath the house!
-                </p>
-            </div>
-
-        </div>
+        <p class="card-text" id="modalDesc">Description goes here...</p>
+      </div>
     </div>
+  </div>
 
-    <script>
-        // Content matrix updated with offset properties for densely populated regions like Europe
-        const locations = [
-            {
-                id: 'vietnam',
-                country: 'Vietnam',
-                flag: '🇻🇳',
-                title: 'Stilt Houses',
-                structure: 'FRAME STRUCTURE',
-                badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-400',
-                pinColor: 0x10b981,
-                lat: 16.0470,
-                lng: 108.2062,
-                offsetX: 0,
-                offsetY: 0,
-                description: 'Houses built high off the ground on tall wooden posts. Floodwater flows safely underneath the house!',
-                image: 'https://vovworld.vn/sites/default/files/world/Uploaded/truonggiang/2018_09_10/000122baoxaydung_image001_LVOB.jpg'
-            },
-            {
-                id: 'netherlands',
-                country: 'Netherlands',
-                flag: '🇳🇱',
-                title: 'Floating Houses',
-                structure: 'FRAME STRUCTURE',
-                badgeClass: 'bg-blue-100 text-blue-800 border-blue-400',
-                pinColor: 0x3b82f6,
-                lat: 52.1326,
-                lng: 6.2000,
-                offsetX: 45, // Shift label slightly right to avoid UK label overlap
-                offsetY: 10,
-                description: 'Floating houses built on hollow bases tied to poles. When floodwater rises, the house floats up like a boat!',
-                image: 'https://www.preventionweb.net/sites/default/files/styles/landscape_16_9/public/2022-01/shutterstock_1713071704-min.jpg?itok=Vkgvp8lY'
-            },
-            {
-                id: 'japan',
-                country: 'Japan',
-                flag: '🇯🇵',
-                title: 'Super-Sealed Homes',
-                structure: 'SHELL STRUCTURE',
-                badgeClass: 'bg-purple-100 text-purple-800 border-purple-400',
-                pinColor: 0x8b5cf6,
-                lat: 36.2048,
-                lng: 138.2529,
-                offsetX: 0,
-                offsetY: 0,
-                description: 'Sealed houses built like a tight waterproof box. Rubber seals on doors and flood gates keep water outside!',
-                image: 'https://imgcp.aacdn.jp/img-a/1440/auto/global-aaj-front/article/2020/10/5f86f01bf2178_5f86efe5a2ec9_1088883730.jpg'
-            },
-            {
-                id: 'india',
-                country: 'India',
-                flag: '🇮🇳',
-                title: 'Dome Houses',
-                structure: 'SHELL STRUCTURE',
-                badgeClass: 'bg-orange-100 text-orange-800 border-orange-400',
-                pinColor: 0xf97316,
-                lat: 20.5937,
-                lng: 78.9629,
-                offsetX: 0,
-                offsetY: 0,
-                description: 'Dome houses shaped like half a ball. Fast water and strong winds slide right around the curved shape!',
-                image: 'https://d2n4wb9orp1vta.cloudfront.net/cms/1008ct-disaster2.jpg'
-            },
-            {
-                id: 'usa',
-                country: 'United States',
-                flag: '🇺🇸',
-                title: 'Bayou Stilt Houses',
-                structure: 'FRAME STRUCTURE',
-                badgeClass: 'bg-teal-100 text-teal-800 border-teal-400',
-                pinColor: 0x14b8a6,
-                lat: 29.9511,
-                lng: -90.0715,
-                offsetX: 0,
-                offsetY: 0,
-                description: 'Stilt houses built on tall posts near the water. Big ocean waves and floods pass right under the floor!',
-                image: 'https://www.greenbuildermedia.com/hs-fs/hubfs/House%20on%20stilts%20adobe%20stock.webp?width=1000&height=667&name=House%20on%20stilts%20adobe%20stock.webp'
-            },
-            {
-                id: 'peru',
-                country: 'Peru',
-                flag: '🇵🇪',
-                title: 'Floating Reed Islands',
-                structure: 'SOLID STRUCTURE',
-                badgeClass: 'bg-amber-100 text-amber-800 border-amber-400',
-                pinColor: 0xd97706,
-                lat: -15.8402,
-                lng: -69.3360,
-                offsetX: 0,
-                offsetY: 0,
-                description: 'Island homes built on floating mats of thick reeds. The floating village rises and falls with the lake water!',
-                image: 'https://www.globeguide.ca/wp-content/uploads/2014/06/Peru-Puno-Lake-Titicaca.jpg'
-            },
-            {
-                id: 'uk',
-                country: 'United Kingdom',
-                flag: '🇬🇧',
-                title: 'Property Flood Barriers',
-                structure: 'FRAME & SOLID STRUCTURE',
-                badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-400',
-                pinColor: 0x6366f1,
-                lat: 54.0000,
-                lng: -3.2000,
-                offsetX: -45, // Shift label slightly left to separate cleanly from Netherlands
-                offsetY: -15,
-                description: 'Flood walls and gates built around the garden. Strong barriers keep river water away from the house!',
-                image: 'https://www.miltonkeynes.co.uk/jpim-static/image/2024/10/08/8/19/im-worcesters-k-1259722.jpg?trim=0,449,0,278&width=640&quality=65'
-            },
-            {
-                id: 'cameroon',
-                country: 'Cameroon',
-                flag: '🇨🇲',
-                title: 'Mud Dome Homes',
-                structure: 'SHELL STRUCTURE',
-                badgeClass: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-400',
-                pinColor: 0xd946ef,
-                lat: 10.2897,
-                lng: 15.0808,
-                offsetX: 0,
-                offsetY: 0,
-                description: 'Tall mud domes shaped like curved shells. Outer grooves drain heavy rainwater, and top holes provide emergency roof exits during sudden flash floods!',
-                image: 'https://apsaidal.com/wp-content/uploads/2023/05/Musgum-Dwellings_Cam0492_Habitation_de_Pouss.jpg'
-            }
-        ];
+  <script>
+    // Local repository images linked directly via relative paths
+    const locations = [
+      {
+        id: 'cambodia',
+        country: 'Cambodia',
+        flag: '🇰🇭',
+        title: 'Stilt Houses',
+        structure: 'FRAME STRUCTURE',
+        badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-400',
+        pinColor: 0x10b981,
+        lat: 12.5657,
+        lng: 104.9910,
+        description: 'Built high on tall wooden posts so high water flows right underneath without touching the living room!',
+        image: 'CAMBODIA.png'
+      },
+      {
+        id: 'netherlands',
+        country: 'The Netherlands',
+        flag: '🇳🇱',
+        title: 'Floating Homes',
+        structure: 'SOLID & FRAME STRUCTURE',
+        badgeClass: 'bg-blue-100 text-blue-800 border-blue-400',
+        pinColor: 0x3b82f6,
+        lat: 52.3676,
+        lng: 4.9041,
+        description: 'Built on hollow concrete bases that act like boats! When flood water rises, the whole house floats up safely.',
+        image: 'NETHERLANDS.gif'
+      },
+      {
+        id: 'japan',
+        country: 'Japan',
+        flag: '🇯🇵',
+        title: 'Sealed Barrier Buildings',
+        structure: 'SHELL STRUCTURE',
+        badgeClass: 'bg-rose-100 text-rose-800 border-rose-400',
+        pinColor: 0xf43f5e,
+        lat: 35.6762,
+        lng: 139.6503,
+        description: 'Strong watertight doors and thick walls seal the building like a glass jar to keep heavy flood waters out.',
+        image: 'JAPAN.png'
+      },
+      {
+        id: 'india',
+        country: 'India',
+        flag: '🇮🇳',
+        title: 'Bamboo Elevated Domes',
+        structure: 'SHELL & FRAME STRUCTURE',
+        badgeClass: 'bg-orange-100 text-orange-800 border-orange-400',
+        pinColor: 0xf97316,
+        lat: 26.2006,
+        lng: 92.9376,
+        description: 'Curved bamboo shells built high off the ground that let strong flood winds and river currents pass around easily.',
+        image: 'INDIA.jpg'
+      },
+      {
+        id: 'usa',
+        country: 'USA (Louisiana)',
+        flag: '🇺🇸',
+        title: 'Bayou Stilt Homes',
+        structure: 'FRAME STRUCTURE',
+        badgeClass: 'bg-purple-100 text-purple-800 border-purple-400',
+        pinColor: 0xa855f7,
+        lat: 29.9511,
+        lng: -90.0715,
+        description: 'Raised high on open wooden frames so ocean storm surges wash safely beneath the house.',
+        image: 'USA.jpg'
+      },
+      {
+        id: 'peru',
+        country: 'Peru',
+        flag: '🇵🇪',
+        title: 'Floating Reed Islands',
+        structure: 'SOLID STRUCTURE',
+        badgeClass: 'bg-amber-100 text-amber-800 border-amber-400',
+        pinColor: 0xd97706,
+        lat: -15.8402,
+        lng: -69.3360,
+        description: 'Island homes built on floating mats of thick reeds. The floating village rises and falls with lake levels.',
+        image: 'PERU.jpg'
+      },
+      {
+        id: 'uk',
+        country: 'United Kingdom',
+        flag: '🇬🇧',
+        title: 'Property Flood Barriers',
+        structure: 'FRAME & SOLID STRUCTURE',
+        badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-400',
+        pinColor: 0x6366f1,
+        lat: 54.0000,
+        lng: -3.2000,
+        description: 'Flood walls and gates built around the garden. Strong barriers keep river water away from house doors.',
+        image: 'UK.png'
+      },
+      {
+        id: 'cameroon',
+        country: 'Cameroon',
+        flag: '🇨🇲',
+        title: 'Musgum Mud Dome Homes',
+        structure: 'SHELL STRUCTURE',
+        badgeClass: 'bg-yellow-100 text-yellow-800 border-yellow-400',
+        pinColor: 0xeab308,
+        lat: 10.6333,
+        lng: 15.0833,
+        description: 'Tall mud domes with grooved walls so heavy flood rain slides off quickly without soaking into the walls!',
+        image: 'CAMEROON.jpg'
+      }
+    ];
 
-        let scene, camera, renderer, globe, clouds, controls;
-        let markers3D = [];
-        let labelElements = [];
-        const EARTH_RADIUS = 70;
-        
-        // Track visited location indices in student session
-        const visitedLocations = new Set();
+    // Three.js Setup
+    const container = document.getElementById('webgl-container');
+    const scene = new THREE.Scene();
+    
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 250;
 
-        // Fallback procedural Earth texture generator
-        function generateFallbackTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 1024;
-            canvas.height = 512;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = '#1e3a8a';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = '#15803d';
-            ctx.beginPath();
-            ctx.ellipse(250, 200, 120, 90, 0.2, 0, Math.PI * 2);
-            ctx.ellipse(320, 380, 80, 110, -0.2, 0, Math.PI * 2);
-            ctx.ellipse(550, 180, 100, 70, 0, 0, Math.PI * 2);
-            ctx.ellipse(560, 320, 90, 110, 0, 0, Math.PI * 2);
-            ctx.ellipse(780, 200, 160, 100, 0, 0, Math.PI * 2);
-            ctx.ellipse(820, 380, 70, 60, 0, 0, Math.PI * 2);
-            ctx.fill();
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
 
-            return new THREE.CanvasTexture(canvas);
-        }
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.rotateSpeed = 0.8;
+    controls.enableZoom = false;
 
-        function init3D() {
-            const container = document.getElementById('canvas-container');
-            document.getElementById('total-count').textContent = locations.length;
-            
-            // Scene
-            scene = new THREE.Scene();
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    scene.add(ambientLight);
 
-            // Camera
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 25, 230);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLight.position.set(5, 3, 5);
+    scene.add(dirLight);
 
-            // Renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            container.appendChild(renderer.domElement);
+    // Globe Mesh
+    const globeRadius = 80;
+    const globeGeo = new THREE.SphereGeometry(globeRadius, 64, 64);
+    const globeMat = new THREE.MeshPhongMaterial({
+      color: 0x1d4ed8,
+      emissive: 0x0a192f,
+      wireframe: false,
+      shininess: 15
+    });
+    const globe = new THREE.Mesh(globeGeo, globeMat);
+    scene.add(globe);
 
-            // Orbit Controls
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.rotateSpeed = 0.8;
-            controls.enableZoom = true;
-            controls.minDistance = 95;
-            controls.maxDistance = 290;
+    // Lat/Lng Helper Functions
+    function latLngToVector3(lat, lng, radius) {
+      const phi = (90 - lat) * (Math.PI / 180);
+      const theta = (lng + 180) * (Math.PI / 180);
+      const x = -(radius * Math.sin(phi) * Math.cos(theta));
+      const z = radius * Math.sin(phi) * Math.sin(theta);
+      const y = radius * Math.cos(phi);
+      return new THREE.Vector3(x, y, z);
+    }
 
-            // Lights
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
-            scene.add(ambientLight);
+    // Add Location Pins
+    const pinObjects = [];
+    locations.forEach(loc => {
+      const pinGeo = new THREE.SphereGeometry(2.5, 16, 16);
+      const pinMat = new THREE.MeshBasicMaterial({ color: loc.pinColor });
+      const pinMesh = new THREE.Mesh(pinGeo, pinMat);
 
-            const sunLight = new THREE.DirectionalLight(0xffffff, 1.3);
-            sunLight.position.set(500, 200, 300);
-            scene.add(sunLight);
+      const pos = latLngToVector3(loc.lat, loc.lng, globeRadius + 1.5);
+      pinMesh.position.copy(pos);
+      pinMesh.userData = loc;
 
-            // Starfield
-            createStarfield();
+      globe.add(pinMesh);
+      pinObjects.push(pinMesh);
+    });
 
-            // Earth Sphere
-            const globeGeometry = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
-            const textureLoader = new THREE.TextureLoader();
+    // Raycasting / Interaction
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
 
-            const earthMapUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/planets/earth_atmos_2048.jpg';
-            const earthSpecUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/planets/earth_specular_2048.jpg';
-            const cloudsMapUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/planets/earth_clouds_1024.png';
+    function onPointerDown(event) {
+      const x = (event.clientX || (event.touches && event.touches[0].clientX));
+      const y = (event.clientY || (event.touches && event.touches[0].clientY));
+      
+      if (!x || !y) return;
 
-            let globeMaterial;
-            try {
-                const earthTexture = textureLoader.load(earthMapUrl);
-                const specularTexture = textureLoader.load(earthSpecUrl);
+      mouse.x = (x / window.innerWidth) * 2 - 1;
+      mouse.y = -(y / window.innerHeight) * 2 + 1;
 
-                globeMaterial = new THREE.MeshPhongMaterial({
-                    map: earthTexture,
-                    specularMap: specularTexture,
-                    specular: new THREE.Color(0x333333),
-                    shininess: 25
-                });
-            } catch (err) {
-                globeMaterial = new THREE.MeshPhongMaterial({
-                    map: generateFallbackTexture(),
-                    shininess: 15
-                });
-            }
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(pinObjects);
 
-            globe = new THREE.Mesh(globeGeometry, globeMaterial);
-            scene.add(globe);
+      if (intersects.length > 0) {
+        const data = intersects[0].object.userData;
+        openModal(data);
+      }
+    }
 
-            // Clouds Mesh Layer
-            try {
-                const cloudGeometry = new THREE.SphereGeometry(EARTH_RADIUS + 1.2, 64, 64);
-                const cloudTexture = textureLoader.load(cloudsMapUrl);
-                const cloudMaterial = new THREE.MeshPhongMaterial({
-                    map: cloudTexture,
-                    transparent: true,
-                    opacity: 0.38,
-                    blending: THREE.AdditiveBlending
-                });
-                clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
-                scene.add(clouds);
-            } catch (e) {
-                console.log('Clouds layer skipped');
-            }
+    window.addEventListener('click', onPointerDown);
 
-            // Outer Atmosphere Glow
-            const atmosGeometry = new THREE.SphereGeometry(EARTH_RADIUS + 3.2, 64, 64);
-            const atmosMaterial = new THREE.MeshBasicMaterial({
-                color: 0x3b82f6,
-                transparent: true,
-                opacity: 0.16,
-                side: THREE.BackSide
-            });
-            scene.add(new THREE.Mesh(atmosGeometry, atmosMaterial));
+    function openModal(data) {
+      document.getElementById('modalTitle').innerText = `${data.flag} ${data.country}: ${data.title}`;
+      document.getElementById('modalImage').src = data.image;
+      
+      const badge = document.getElementById('modalBadge');
+      badge.innerText = data.structure;
+      badge.className = `inline-block px-3 py-1 rounded-full text-xs font-bold border ${data.badgeClass}`;
 
-            // Create 3D markers and 2D labels for all locations
-            locations.forEach((loc, index) => {
-                const marker = createMarkerMesh(loc, EARTH_RADIUS, index);
-                globe.add(marker);
-                markers3D.push(marker);
+      document.getElementById('modalDesc').innerText = data.description;
+      document.getElementById('modalOverlay').style.display = 'flex';
+    }
 
-                create2DLabel(loc, index);
-            });
+    function closeModal() {
+      document.getElementById('modalOverlay').style.display = 'none';
+    }
 
-            // Initial view angle over Asia / Europe
-            globe.rotation.y = -2.1;
+    // Animation Loop
+    function animate() {
+      requestAnimationFrame(animate);
+      globe.rotation.y += 0.0015;
+      controls.update();
+      renderer.render(scene, camera);
+    }
 
-            window.addEventListener('resize', onWindowResize);
+    animate();
 
-            // Raycaster for clicking 3D pin objects directly
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-
-            renderer.domElement.addEventListener('pointerdown', (e) => {
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-                raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects(markers3D, true);
-
-                if (intersects.length > 0) {
-                    let obj = intersects[0].object;
-                    while (obj.parent && obj.userData.locationIndex === undefined) {
-                        obj = obj.parent;
-                    }
-                    if (obj.userData.locationIndex !== undefined) {
-                        openLocationModal(obj.userData.locationIndex);
-                    }
-                }
-            });
-
-            animate();
-        }
-
-        function createStarfield() {
-            const starGeo = new THREE.BufferGeometry();
-            const count = 900;
-            const positions = new Float32Array(count * 3);
-
-            for (let i = 0; i < count * 3; i += 3) {
-                positions[i] = (Math.random() - 0.5) * 1300;
-                positions[i + 1] = (Math.random() - 0.5) * 1300;
-                positions[i + 2] = (Math.random() - 0.5) * 1300;
-            }
-
-            starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const starMat = new THREE.PointsMaterial({
-                color: 0xffffff,
-                size: 1.3,
-                transparent: true,
-                opacity: 0.75
-            });
-            scene.add(new THREE.Points(starGeo, starMat));
-        }
-
-        // GPS Lat/Lng to Vector3 transformation
-        function latLngToVector3(lat, lng, radius) {
-            const phi = (90 - lat) * (Math.PI / 180);
-            const theta = (lng + 180) * (Math.PI / 180);
-
-            const x = -(radius * Math.sin(phi) * Math.cos(theta));
-            const z = (radius * Math.sin(phi) * Math.sin(theta));
-            const y = (radius * Math.cos(phi));
-
-            return new THREE.Vector3(x, y, z);
-        }
-
-        function createMarkerMesh(loc, radius, index) {
-            const markerGroup = new THREE.Group();
-            const pos = latLngToVector3(loc.lat, loc.lng, radius);
-            markerGroup.position.copy(pos);
-
-            markerGroup.lookAt(new THREE.Vector3(0,0,0));
-            markerGroup.rotateY(Math.PI);
-
-            // Needle shaft
-            const pinGeo = new THREE.CylinderGeometry(0.5, 0.1, 7, 12);
-            pinGeo.rotateX(Math.PI / 2);
-            const pinMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            const pinMesh = new THREE.Mesh(pinGeo, pinMat);
-            pinMesh.position.z = 3.5;
-            markerGroup.add(pinMesh);
-
-            // Pin Head Sphere
-            const headGeo = new THREE.SphereGeometry(2.6, 16, 16);
-            const headMat = new THREE.MeshStandardMaterial({
-                color: loc.pinColor,
-                roughness: 0.2,
-                emissive: loc.pinColor,
-                emissiveIntensity: 0.35
-            });
-            const headMesh = new THREE.Mesh(headGeo, headMat);
-            headMesh.position.z = 7;
-            headMesh.name = "headMesh";
-            markerGroup.add(headMesh);
-
-            markerGroup.userData = { locationIndex: index };
-            return markerGroup;
-        }
-
-        function create2DLabel(loc, index) {
-            const container = document.getElementById('labels-container');
-            const label = document.createElement('div');
-            label.className = 'globe-pin-label';
-            label.id = `label-${index}`;
-            
-            // Build large easy-to-read tag with Country Flag + Title
-            label.innerHTML = `
-                <div id="label-card-${index}" onclick="openLocationModal(${index})" class="bg-white px-4 py-2 rounded-full shadow-2xl border-4 border-slate-900 flex items-center gap-2.5 cursor-pointer font-black text-slate-900 text-sm sm:text-lg hover:bg-yellow-100 transition-all">
-                    <span class="text-2xl sm:text-3xl">${loc.flag}</span>
-                    <div class="flex flex-col">
-                        <span class="leading-none text-slate-900">${loc.country}</span>
-                        <span class="text-xs sm:text-sm font-extrabold text-blue-700">${loc.title}</span>
-                    </div>
-                    <span id="visited-tag-${index}" class="hidden ml-1 px-2 py-0.5 bg-emerald-500 text-white text-xs font-black rounded-full">✓ Explored</span>
-                </div>
-            `;
-            container.appendChild(label);
-            labelElements.push({ 
-                element: label, 
-                lat: loc.lat, 
-                lng: loc.lng,
-                offsetX: loc.offsetX || 0,
-                offsetY: loc.offsetY || 0
-            });
-        }
-
-        function updateLabels() {
-            if (!globe) return;
-
-            const tempV = new THREE.Vector3();
-            labelElements.forEach((item) => {
-                const pos = latLngToVector3(item.lat, item.lng, EARTH_RADIUS + 7.5);
-                pos.applyMatrix4(globe.matrixWorld);
-
-                tempV.copy(pos).sub(camera.position).normalize();
-                const normal = pos.clone().normalize();
-                const isBehind = normal.dot(tempV) > 0.15;
-
-                if (isBehind) {
-                    item.element.style.opacity = '0';
-                    item.element.style.pointerEvents = 'none';
-                } else {
-                    pos.project(camera);
-                    let x = (pos.x * 0.5 + 0.5) * window.innerWidth + item.offsetX;
-                    let y = (-(pos.y * 0.5) + 0.5) * window.innerHeight + item.offsetY;
-
-                    item.element.style.left = `${x}px`;
-                    item.element.style.top = `${y}px`;
-                    item.element.style.opacity = '1';
-                    item.element.style.pointerEvents = 'auto';
-                }
-            });
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-
-            if (clouds) clouds.rotation.y += 0.00025;
-            if (globe) globe.rotation.y += 0.0004;
-
-            controls.update();
-            updateLabels();
-            renderer.render(scene, camera);
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function openLocationModal(index) {
-            const loc = locations[index];
-
-            // Mark location as visited
-            visitedLocations.add(index);
-            document.getElementById('visited-count').textContent = visitedLocations.size;
-
-            // Apply visual color changes to visited 2D label
-            const labelCard = document.getElementById(`label-card-${index}`);
-            if (labelCard) {
-                labelCard.classList.remove('bg-white', 'border-slate-900');
-                labelCard.classList.add('bg-emerald-50', 'border-emerald-500');
-            }
-            const visitedTag = document.getElementById(`visited-tag-${index}`);
-            if (visitedTag) {
-                visitedTag.classList.remove('hidden');
-            }
-
-            // Apply visual color change to 3D Pin Head (Gold/Amber highlight)
-            const marker = markers3D[index];
-            if (marker) {
-                marker.traverse((child) => {
-                    if (child.name === "headMesh") {
-                        child.material.color.setHex(0xf59e0b); // Golden amber
-                        child.material.emissive.setHex(0xd97706);
-                    }
-                });
-            }
-
-            // Populate Modal Content
-            document.getElementById('modal-flag').textContent = loc.flag;
-            document.getElementById('modal-country').textContent = loc.country;
-            document.getElementById('modal-title').textContent = loc.title;
-            
-            const badge = document.getElementById('modal-badge');
-            badge.textContent = loc.structure;
-            badge.className = `px-5 py-2 text-sm sm:text-base font-black rounded-full border-2 ${loc.badgeClass} uppercase tracking-wide inline-block shadow-sm`;
-
-            const imgEl = document.getElementById('modal-image');
-            imgEl.src = loc.image;
-            imgEl.alt = `${loc.country} ${loc.title}`;
-
-            document.getElementById('modal-description').textContent = loc.description;
-
-            const modal = document.getElementById('info-modal');
-            modal.classList.remove('hidden');
-        }
-
-        function closeInfoModal() {
-            document.getElementById('info-modal').classList.add('hidden');
-        }
-
-        // Close modal on Escape key press
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeInfoModal();
-        });
-
-        // Initialize on window load
-        window.onload = function() {
-            init3D();
-        };
-    </script>
+    // Resize Handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
 </body>
 </html>
