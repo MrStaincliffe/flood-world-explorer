@@ -459,26 +459,32 @@
       });
     });
 
-    // Update 2D Label Screen Positions relative to 3D Globe Rotation
+    // Updated Label Position Calculation using World Matrices
+    const worldPos = new THREE.Vector3();
+    const cameraDir = new THREE.Vector3();
+
     function updateLabels() {
-      const tempV = new THREE.Vector3();
-      const cameraPosition = new THREE.Vector3();
-      camera.getWorldPosition(cameraPosition);
+      camera.getWorldDirection(cameraDir);
 
       labelElements.forEach(item => {
-        item.mesh.getWorldPosition(tempV);
+        // Get pin position in global space
+        item.mesh.getWorldPosition(worldPos);
 
-        const distanceToCamera = tempV.distanceTo(cameraPosition);
-        const isBehindGlobe = tempV.dot(cameraPosition) < 0;
+        // Vector pointing from globe center to pin
+        const pinNormal = worldPos.clone().normalize();
+        
+        // Check if facing the camera angle
+        const dot = pinNormal.dot(camera.position.clone().normalize());
 
-        if (isBehindGlobe || distanceToCamera > camera.position.z + globeRadius) {
+        if (dot < 0.2) {
           item.element.style.display = 'none';
         } else {
           item.element.style.display = 'flex';
           
-          tempV.project(camera);
-          const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
-          const y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
+          // Project 3D vector to 2D screen coordinates
+          const projected = worldPos.clone().project(camera);
+          const x = (projected.x * 0.5 + 0.5) * window.innerWidth;
+          const y = (projected.y * -0.5 + 0.5) * window.innerHeight;
 
           item.element.style.left = `${x}px`;
           item.element.style.top = `${y - 12}px`;
